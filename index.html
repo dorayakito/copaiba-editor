@@ -5,9 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>COPAIBA @ Editor de oto.ini</title>
 
-  <!-- Tailwind utilitário -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Encoding.js para Shift_JIS / ANSI JP -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/encoding-japanese/1.0.30/encoding.min.js" defer></script>
 
   <style>
@@ -43,7 +41,6 @@
     #labels{position:absolute;inset:0;pointer-events:none}
     #labels .handle,#labels .marker-label{pointer-events:auto}
 
-    /* ===== Temas ===== */
     :root{
       --bg:#ffffff; --text:#111827; --muted:#6b7280; --card:#ffffff;
       --accent:#2563eb; --grid:#e5e7eb; --label-bg:#f9fafb; --border:#e5e7eb; --input-bg:#ffffff;
@@ -64,18 +61,44 @@
     button{color:var(--text)}
     .tag{border-color:var(--border);background:rgba(148,163,184,0.1);color:var(--muted)}
 
-    /* Dock de janelas minimizadas */
     #dock{position:fixed;left:12px;bottom:12px;display:flex;gap:8px;flex-wrap:wrap;z-index:10000}
     #dock .dock-item{background:var(--card);border:1px solid var(--border);padding:.35rem .55rem;border-radius:.75rem;box-shadow:0 2px 8px rgba(0,0,0,.2);cursor:pointer;font-size:12px}
     #dock .dock-item:hover{outline:1px solid var(--accent)}
     .minimized{display:none !important}
 
-    /* Selecionado na lista */
     .alias-row{transition:background-color .08s ease, box-shadow .08s ease, transform .08s ease;}
     .alias-row.selected{
       background:rgba(37,99,235,0.10);
       box-shadow:0 0 0 1px rgba(37,99,235,0.4);
       transform:translateX(1px);
+    }
+
+    /* Planilha */
+    #gridBody{font-size:12px}
+    .grid-cell{
+      padding:2px 4px;
+      border-bottom:1px solid var(--border);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .grid-cell input{
+      width:100%;
+      border:none;
+      outline:none;
+      background:transparent;
+      font:inherit;
+    }
+    .grid-cell.readonly input{pointer-events:none}
+    .grid-cell.selected{
+      background:rgba(37,99,235,0.18);
+      box-shadow:inset 0 0 0 1px rgba(37,99,235,0.7);
+    }
+    .grid-header{
+      position:sticky;top:0;
+      background:var(--card);
+      z-index:1;
+      border-bottom:1px solid var(--border);
     }
   </style>
 </head>
@@ -101,7 +124,6 @@
         <button id="btnOto" class="px-3 py-1.5 rounded-xl border bg-transparent hover:bg-black/5">Carregar oto.ini</button>
         <button id="btnSave" class="px-3 py-1.5 rounded-xl border bg-transparent hover:bg-black/5 disabled:opacity-50" disabled>Exportar oto.ini</button>
 
-        <!-- Tema -->
         <button id="btnTheme" class="px-3 py-1.5 rounded-xl border bg-transparent hover:bg-black/5 text-sm" title="Alternar modo claro/escuro">🌙</button>
       </div>
     </div>
@@ -109,7 +131,7 @@
 
   <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
     <div class="grid grid-cols-12 gap-4">
-      <!-- ESQUERDA: Arquivos / Filtros -->
+      <!-- ESQUERDA -->
       <aside class="col-span-12 md:col-span-4">
         <div id="pane-files" class="card floatable" data-float-key="files">
           <div class="card-header drag-handle">
@@ -125,7 +147,6 @@
           </div>
 
           <div class="card-body p-3 space-y-2">
-            <!-- FILTRO PERSONALIZÁVEL -->
             <div class="space-y-2">
               <div class="flex items-center gap-2">
                 <input id="filter" placeholder='Filtrar… (ex.: b ou "b r")' class="w-full px-2 py-1 rounded-lg border bg-transparent text-sm" />
@@ -142,7 +163,7 @@
                 <button id="btnStarResults" class="px-2 py-1 rounded-lg border bg-transparent" title="Marca/Desmarca ★ dos resultados atuais">★/☆ resultados</button>
               </div>
               <p class="text-xs text-muted">
-                Dicas: termos separados por espaço fazem <strong>OR</strong>. Ative <em>Regex</em> para usar padrões avançados.
+                Ctrl+Clique = selecionar individual • Shift+Clique = intervalo
               </p>
             </div>
 
@@ -153,7 +174,7 @@
 
       <!-- DIREITA -->
       <section class="col-span-12 md:col-span-8 space-y-3">
-        <!-- Waveform & Controles -->
+        <!-- WAVE -->
         <div id="pane-wave" class="card floatable" data-float-key="wave">
           <div class="card-header drag-handle">
             <div class="text-sm">
@@ -214,7 +235,43 @@
           </div>
         </div>
 
-        <!-- Parâmetros -->
+        <!-- NOVA PLANILHA DE PARÂMETROS -->
+        <div id="pane-grid" class="card floatable" data-float-key="grid">
+          <div class="card-header drag-handle">
+            <div class="flex items-center gap-2">
+              <span class="text-sm">Planilha de parâmetros</span>
+              <span class="tag text-[10px] text-muted">Ctrl+Clique / Shift+Clique = seleção</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button class="float-btn" data-minimize title="Minimizar">_</button>
+              <button class="float-btn" data-float-toggle title="Destacar/Voltar">🗖</button>
+            </div>
+          </div>
+          <div class="card-body p-2">
+            <div class="overflow-auto max-h-[50vh]">
+              <table class="w-full text-xs table-fixed border-collapse">
+                <thead class="grid-header">
+                  <tr>
+                    <th class="text-left px-2 py-1 border-b border-slate-200/60 w-[38%]">.wav</th>
+                    <th class="text-right px-2 py-1 border-b border-slate-200/60 w-[9%]">Corte inicial</th>
+                    <th class="text-right px-2 py-1 border-b border-slate-200/60 w-[9%]">Transição</th>
+                    <th class="text-right px-2 py-1 border-b border-slate-200/60 w-[9%]">Início da vogal</th>
+                    <th class="text-right px-2 py-1 border-b border-slate-200/60 w-[9%]">Parte de loop</th>
+                    <th class="text-right px-2 py-1 border-b border-slate-200/60 w-[9%]">Corte final</th>
+                    <th class="text-left px-2 py-1 border-b border-slate-200/60 w-[17%]">Alias</th>
+                  </tr>
+                </thead>
+                <tbody id="gridBody"></tbody>
+              </table>
+            </div>
+            <p class="mt-2 text-[11px] text-muted">
+              Seleção em retângulo com Shift+Clique. Ao editar uma célula, o valor é aplicado a todas as células selecionadas da mesma coluna.
+              Ctrl+C / Ctrl+V funcionam para copiar/colar blocos como no SetParam.
+            </p>
+          </div>
+        </div>
+
+        <!-- PARÂMETROS DETALHADOS -->
         <div id="pane-params" class="card floatable" data-float-key="params">
           <div class="card-header drag-handle">
             <span class="text-sm">Configurações dos parâmetros</span>
@@ -253,7 +310,7 @@
           </div>
         </div>
 
-        <!-- oto.ini -->
+        <!-- OTO RAW -->
         <div id="pane-oto" class="card floatable" data-float-key="oto">
           <div class="card-header drag-handle">
             <div class="flex items-center gap-2">
@@ -273,11 +330,9 @@
     </div>
   </main>
 
-  <!-- Dock de janelas minimizadas -->
   <div id="dock" class="hidden"></div>
 
   <script>
-  /* ===== Helpers ===== */
   const $ = id => document.getElementById(id);
   const qs = (sel,root=document)=> root.querySelector(sel);
   const qsa = (sel,root=document)=> [...root.querySelectorAll(sel)];
@@ -287,10 +342,10 @@
   const round0=(x)=> Math.round(Number(x||0));
   const fmt = (ms)=> String(round0(ms));
 
-  /* ===== Undo / Redo (sem log visual) ===== */
+  /* Undo/Redo (sem log) */
   let undoStack=[], redoStack=[];
-  function logMsg(_msg){} // log desligado
-  function updateUndoRedoButtons(){} // não há botões agora
+  function logMsg(_m){}
+  function updateUndoRedoButtons(){}
 
   function pushAction(action, desc){
     undoStack.push(action);
@@ -307,37 +362,41 @@
       const i=action.index; if(!rows[i]) return;
       rows[i]={...(dir==='undo'?action.before:action.after)};
       if(selectedRowIndex===i) loadParamsToUI();
-      refreshOtoView(); renderAliasList(); drawAll();
+      refreshOtoView(); renderAliasList(); renderParamGrid(); drawAll();
     } else if(action.type==='insert'){
       if(dir==='undo') rows.splice(action.index,1);
       else rows.splice(action.index,0,{...action.row});
       selectedRowIndex=Math.min(action.index, rows.length-1);
-      renderAliasList(); refreshOtoView(); if(rows.length) selectRow(selectedRowIndex);
+      renderAliasList(); renderParamGrid(); refreshOtoView(); if(rows.length) selectRow(selectedRowIndex);
     } else if(action.type==='remove'){
       if(dir==='undo'){
         rows.splice(action.index,0,{...action.row});
-        selectedRowIndex=action.index; renderAliasList(); refreshOtoView(); selectRow(selectedRowIndex);
+        selectedRowIndex=action.index; renderAliasList(); renderParamGrid(); refreshOtoView(); selectRow(selectedRowIndex);
       } else {
         rows.splice(action.index,1);
         selectedRowIndex=Math.min(action.index, rows.length-1);
-        renderAliasList(); refreshOtoView(); if(rows.length) selectRow(selectedRowIndex); else { currentName.textContent='(nenhum arquivo)'; drawAll(); }
+        renderAliasList(); renderParamGrid(); refreshOtoView(); if(rows.length) selectRow(selectedRowIndex); else { currentName.textContent='(nenhum arquivo)'; drawAll(); }
       }
     }
   }
-  function undoOnce(){
-    const a=undoStack.pop(); if(!a) return;
-    redoStack.push(a); applyAction(a,'undo'); logMsg('Undo'); updateUndoRedoButtons();
-  }
-  function redoOnce(){
-    const a=redoStack.pop(); if(!a) return;
-    undoStack.push(a); applyAction(a,'redo'); logMsg('Redo'); updateUndoRedoButtons();
-  }
+  function undoOnce(){ const a=undoStack.pop(); if(!a) return; redoStack.push(a); applyAction(a,'undo'); logMsg('Undo'); }
+  function redoOnce(){ const a=redoStack.pop(); if(!a) return; undoStack.push(a); applyAction(a,'redo'); logMsg('Redo'); }
 
-  /* ===== Float, Dock e Minimizar ===== */
-  const FLOAT_KEY_PREFIX='flt:'; const DOCK_KEY='dock:';
-  const dock = $('dock');
+  /* Float + Dock */
+  const FLOAT_KEY_PREFIX='flt:'; const dock=$('dock');
   function ensureDockVisible(){ dock.classList.toggle('hidden', dock.children.length===0); }
-  function makeFloating(pane, saved=null){
+  function bringToFront(pane){
+    const zs=qsa('.floating').map(p=>parseInt(getComputedStyle(p).zIndex||'9999',10));
+    pane.style.zIndex=((zs.length?Math.max(...zs):9999)+1).toString();
+  }
+  function savePaneState(pane,patch={}){
+    const key=pane.dataset.floatKey||''; if(!key) return;
+    const r=pane.getBoundingClientRect();
+    const prev=JSON.parse(localStorage.getItem(FLOAT_KEY_PREFIX+key)||'{}');
+    const data={floating:pane.classList.contains('floating'),left:r.left,top:r.top,width:r.width,height:r.height,...patch};
+    localStorage.setItem(FLOAT_KEY_PREFIX+key, JSON.stringify({...prev,...data}));
+  }
+  function makeFloating(pane,saved=null){
     pane.classList.add('floating');
     const rect=pane.getBoundingClientRect();
     pane.style.left=(saved?.left ?? 60)+'px';
@@ -354,30 +413,18 @@
     qs('[data-float-toggle]',pane).textContent='🗖';
     savePaneState(pane,{floating:false});
   }
-  function bringToFront(pane){
-    const zs=qsa('.floating').map(p=>parseInt(getComputedStyle(p).zIndex||'9999',10));
-    pane.style.zIndex=((zs.length?Math.max(...zs):9999)+1).toString();
-  }
   function positionPane(pane,left,top){
     const vw=innerWidth,vh=innerHeight, r=pane.getBoundingClientRect(), w=r.width,h=r.height;
     pane.style.left=clamp(left,0,Math.max(0,vw-w))+'px';
     pane.style.top=clamp(top,0,Math.max(0,vh-h))+'px';
   }
-  function savePaneState(pane,patch={}){
-    const key=pane.dataset.floatKey||''; if(!key) return;
-    const r=pane.getBoundingClientRect();
-    const prev=JSON.parse(localStorage.getItem(FLOAT_KEY_PREFIX+key)||'{}');
-    const data={floating:pane.classList.contains('floating'),left:r.left,top:r.top,width:r.width,height:r.height,...patch};
-    localStorage.setItem(FLOAT_KEY_PREFIX+key, JSON.stringify({...prev,...data}));
-  }
-
-  function minimizePane(pane, boot=false){
+  function minimizePane(pane,boot=false){
     const key=pane.dataset.floatKey||'';
     pane.classList.add('minimized');
-    const title = (qs('.card-header span, .card-header .text-sm',pane)?.innerText||'painel').split('\n')[0];
-    let item = qs(`.dock-item[data-key="${key}"]`, dock);
+    const title=(qs('.card-header span, .card-header .text-sm',pane)?.innerText||'painel').split('\n')[0];
+    let item=qs(`.dock-item[data-key="${key}"]`,dock);
     if(!item){
-      item = document.createElement('button');
+      item=document.createElement('button');
       item.className='dock-item'; item.dataset.key=key;
       item.textContent=title||key||'painel';
       item.title='Restaurar “'+item.textContent+'”';
@@ -388,19 +435,18 @@
     if(!boot) savePaneState(pane,{minimized:true});
   }
   function restorePane(key){
-    const pane = qsa('.floatable').find(p=> (p.dataset.floatKey||'')===key); if(!pane) return;
+    const pane=qsa('.floatable').find(p=>(p.dataset.floatKey||'')===key); if(!pane) return;
     pane.classList.remove('minimized'); savePaneState(pane,{minimized:false});
-    const item = qs(`.dock-item[data-key="${key}"]`, dock); item?.remove(); ensureDockVisible();
+    const item=qs(`.dock-item[data-key="${key}"]`,dock); item?.remove(); ensureDockVisible();
   }
-
   function initFloatables(){
     qsa('.floatable').forEach(pane=>{
-      const btnFloat = qs('[data-float-toggle]',pane);
-      const btnMin = qs('[data-minimize]',pane);
-      const header = qs('.card-header',pane);
-      const key = pane.dataset.floatKey || '';
-      const saved = key ? JSON.parse(localStorage.getItem(FLOAT_KEY_PREFIX+key)||'null') : null;
-      if(saved?.floating) makeFloating(pane, saved);
+      const btnFloat=qs('[data-float-toggle]',pane);
+      const btnMin=qs('[data-minimize]',pane);
+      const header=qs('.card-header',pane);
+      const key=pane.dataset.floatKey||'';
+      const saved=key?JSON.parse(localStorage.getItem(FLOAT_KEY_PREFIX+key)||'null'):null;
+      if(saved?.floating) makeFloating(pane,saved);
       if(saved?.minimized) minimizePane(pane,true);
 
       btnFloat?.addEventListener('click',()=>{ pane.classList.contains('floating')?dockPane(pane):makeFloating(pane); });
@@ -414,7 +460,7 @@
         const r=pane.getBoundingClientRect(); sl=r.left; st=r.top;
         e.preventDefault();
       });
-      addEventListener('mousemove',(e)=>{
+      addEventListener('mousemove',e=>{
         if(!dragging)return;
         positionPane(pane, sl+(e.clientX-sx), st+(e.clientY-sy));
       });
@@ -429,7 +475,7 @@
     });
   }
 
-  /* ===== Tema & Preferências ===== */
+  /* Preferências */
   const PREF_KEY='copaiba_prefs_v4';
   const defaultPrefs={theme:'light', vzoom:1, showSpec:false, waveColor:'#000000', waveBgColor:null};
   let prefs={...defaultPrefs};
@@ -438,17 +484,17 @@
   function applyTheme(){
     document.body.classList.remove('theme-light','theme-dark');
     document.body.classList.add('theme-'+(prefs.theme||'light'));
-    $('btnTheme').textContent = prefs.theme==='dark'?'☀️':'🌙';
-    $('btnTheme').title = prefs.theme==='dark'?'Alternar para modo claro':'Alternar para modo escuro';
+    $('btnTheme').textContent=prefs.theme==='dark'?'☀️':'🌙';
+    $('btnTheme').title=prefs.theme==='dark'?'Alternar para modo claro':'Alternar para modo escuro';
   }
   function getWaveColors(){
-    const computedBg = getComputedStyle(document.body).getPropertyValue('--card') || '#ffffff';
-    const waveBg = (prefs.waveBgColor || computedBg || '#ffffff').trim();
-    const waveColor = (prefs.waveColor || '#000000').trim();
-    return {waveBg, waveColor};
+    const computedBg=getComputedStyle(document.body).getPropertyValue('--card')||'#ffffff';
+    const waveBg=(prefs.waveBgColor||computedBg||'#ffffff').trim();
+    const waveColor=(prefs.waveColor||'#000000').trim();
+    return {waveBg,waveColor};
   }
 
-  /* ===== OTO parsing/serialize ===== */
+  /* OTO */
   function parseOto(text){
     const lines=String(text).replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
     const out=[];
@@ -483,38 +529,29 @@
   }
   function inferAlias(filename){ return basename(filename).replace(/\.[^.]+$/,''); }
 
-  /* ===== Estado principal ===== */
+  /* Estado principal */
   let audioCtx; let currentBuffer=null; let source=null;
   let files=[]; let rows=[]; let selectedRowIndex=-1; let selectedRowIndices=[];
   let zoom=1, vzoom=1; let viewStartMs=0; let cursorMs=0; let selectedMarkerId=null; let lastMouseX=null;
 
-  // Progresso / estrelas
   const STAR_KEY='copaiba_stars_v1';
-  let starSet = new Set(); // keys: filename|alias
-  function loadStars(){ try{starSet=new Set(JSON.parse(localStorage.getItem(STAR_KEY)||'[]')); }catch{ starSet=new Set(); } }
+  let starSet=new Set();
+  function loadStars(){ try{starSet=new Set(JSON.parse(localStorage.getItem(STAR_KEY)||'[]'));}catch{starSet=new Set();}}
   function saveStars(){ localStorage.setItem(STAR_KEY, JSON.stringify([...starSet])); }
   function keyFor(r){ return (r?.filename||'')+'|'+(r?.alias||''); }
-  function updateStarCounter(){ $('countStars').textContent = '★ '+String(starSet.size); }
+  function updateStarCounter(){ $('countStars').textContent='★ '+String(starSet.size); }
 
-  // Espectrograma (pré-calculado por arquivo)
-  const specCache = new Map(); // key: fileIndex => {cols,rows,data,minDB,maxDB,hop,N}
+  const specCache=new Map();
 
-  const COLORS = {
-    overlap:'#22c55e',
-    preutter:'#ef4444',
-    consonant:'#ec4899',
-    offset:'#1e3a8a',
-    cutoff:'#60a5fa'
-  };
-  const markers = [
-    {key:'Q', id:'offset',    color:COLORS.offset,    label:'Corte inicial'},
-    {key:'W', id:'overlap',   color:COLORS.overlap,   label:'Transição'},
-    {key:'E', id:'preutter',  color:COLORS.preutter,  label:'Início da vogal'},
-    {key:'R', id:'consonant', color:COLORS.consonant, label:'Parte de loop'},
-    {key:'T', id:'cutoff',    color:COLORS.cutoff,    label:'Corte final'},
+  const COLORS={overlap:'#22c55e',preutter:'#ef4444',consonant:'#ec4899',offset:'#1e3a8a',cutoff:'#60a5fa'};
+  const markers=[
+    {key:'Q',id:'offset',label:'Corte inicial'},
+    {key:'W',id:'overlap',label:'Transição'},
+    {key:'E',id:'preutter',label:'Início da vogal'},
+    {key:'R',id:'consonant',label:'Parte de loop'},
+    {key:'T',id:'cutoff',label:'Corte final'},
   ];
 
-  /* ===== DOM ===== */
   const wave=$('wave'), ctxWave=wave.getContext('2d');
   const mini=$('mini'), mctx=mini.getContext('2d');
   const spec=$('spec'), sctx=spec.getContext('2d');
@@ -524,7 +561,7 @@
   const currentName=$('currentName'), srInfo=$('srInfo');
   const aliasIn=$('alias'), offsetIn=$('offset'), consonantIn=$('consonant'),
         cutoffIn=$('cutoff'), preutterIn=$('preutter'), overlapIn=$('overlap');
-  const pickFolder=$('pickFolder'), pickOto=$('pickOto'); const otoView=$('otoView');
+  const pickFolder=$('pickFolder'), pickOto=$('pickOto'), otoView=$('otoView');
   const zoomSlider=$('zoom'), zoomLabel=$('zoomLabel');
   const vzoomSlider=$('vzoom'), vzoomLabel=$('vzoomLabel');
   const btnFolder=$('btnFolder'); const encodingSelect=$('otoEncoding'); const encodingBadge=$('encodingBadge');
@@ -532,8 +569,9 @@
   const btnSelectResults=$('btnSelectResults'), btnClearSelection=$('btnClearSelection'), btnStarResults=$('btnStarResults');
   const SPEC_WRAP=$('specWrap'), toggleSpec=$('toggleSpec');
   const waveColorPicker=$('waveColorPicker'), waveBgColorPicker=$('waveBgColorPicker');
+  const gridBody=$('gridBody');
 
-  /* ===== Encodings ===== */
+  /* Encodings */
   function countJapaneseChars(str){
     let n=0; for(let i=0;i<str.length;i++){
       const code=str.charCodeAt(i);
@@ -542,15 +580,14 @@
     return n;
   }
   function decodeBuffer(buf,enc){
-    try{ return new TextDecoder(enc).decode(buf); }
-    catch{ try{ return new TextDecoder('utf-8').decode(buf);}catch{return''} }
+    try{return new TextDecoder(enc).decode(buf);}catch{try{return new TextDecoder('utf-8').decode(buf);}catch{return''}}
   }
   function detectEncoding(buf){
     const u8=new Uint8Array(buf);
     if(u8.length>=3 && u8[0]===0xEF && u8[1]===0xBB && u8[2]===0xBF)
-      return {encoding:'utf-8', text:new TextDecoder('utf-8').decode(u8.subarray(3))};
+      return{encoding:'utf-8',text:new TextDecoder('utf-8').decode(u8.subarray(3))};
     if(u8.length>=2 && u8[0]===0xFF && u8[1]===0xFE)
-      return {encoding:'utf-16le', text:new TextDecoder('utf-16le').decode(u8.subarray(2))};
+      return{encoding:'utf-16le',text:new TextDecoder('utf-16le').decode(u8.subarray(2))};
     const cands=[];
     ['utf-8','shift_jis','windows-1252'].forEach(enc=>{
       try{
@@ -560,23 +597,18 @@
       }catch{}
     });
     if(!cands.length)
-      return {encoding:'utf-8', text:new TextDecoder('utf-8').decode(u8)};
-    cands.sort((a,b)=> (b.jp-a.jp) || (a.enc==='utf-8'?-1:1));
-    return {encoding:cands[0].enc, text:cands[0].text};
+      return{encoding:'utf-8',text:new TextDecoder('utf-8').decode(u8)};
+    cands.sort((a,b)=>(b.jp-a.jp)||(a.enc==='utf-8'?-1:1));
+    return{encoding:cands[0].enc,text:cands[0].text};
   }
   function updateEncodingBadge(encoding,isAuto){
-    const map={
-      'utf-8':'UTF-8',
-      'shift_jis':'ANSI JP (Shift_JIS)',
-      'windows-1252':'ANSI Latin-1',
-      'utf-16le':'UTF-16 LE'
-    };
+    const map={'utf-8':'UTF-8','shift_jis':'ANSI JP (Shift_JIS)','windows-1252':'ANSI Latin-1','utf-16le':'UTF-16 LE'};
     const label=map[encoding]||encoding;
     encodingBadge.textContent=label+(isAuto?' (auto)':'');
     encodingBadge.title=`Codificação usada: ${label}${isAuto?' (detectada automaticamente)':''}`;
   }
 
-  let lastOtoBuffer=null,lastOtoFileName=''; let lastOtoEncoding='utf-8';
+  let lastOtoBuffer=null,lastOtoFileName='',lastOtoEncoding='utf-8';
 
   async function loadOtoFromBuffer(buf,filename){
     const sel=encodingSelect?.value||'auto'; let res;
@@ -585,7 +617,7 @@
       logMsg(`oto.ini carregado (${filename||'buffer'}) em ${res.encoding} (auto)`);
       updateEncodingBadge(res.encoding,true);
     } else {
-      res={encoding:sel, text:decodeBuffer(buf,sel)};
+      res={encoding:sel,text:decodeBuffer(buf,sel)};
       logMsg(`oto.ini carregado (${filename||'buffer'}) em ${sel}`);
       updateEncodingBadge(sel,false);
     }
@@ -599,24 +631,19 @@
         }
       }
     }
-
-    if(rows.length){
-      if(selectedRowIndex<0) selectedRowIndex=0;
-      selectRow(selectedRowIndex);
-    }
-    refreshOtoView(); renderAliasList();
+    if(rows.length && selectedRowIndex<0) selectedRowIndex=0;
+    if(rows.length) selectRow(selectedRowIndex);
+    refreshOtoView(); renderAliasList(); renderParamGrid();
   }
 
-  /* ===== Arquivos ===== */
-  const supportsDir = 'webkitdirectory' in pickFolder;
+  /* Arquivos */
+  const supportsDir='webkitdirectory' in pickFolder;
   let pickFiles=document.createElement('input');
   pickFiles.type='file'; pickFiles.multiple=true; pickFiles.accept='audio/wav'; pickFiles.style.display='none';
   document.body.appendChild(pickFiles);
   if(!supportsDir) btnFolder.textContent='Abrir arquivos .wav';
 
-  btnFolder.addEventListener('click',()=>{
-    if(supportsDir) pickFolder.click(); else pickFiles.click();
-  });
+  btnFolder.addEventListener('click',()=>{ if(supportsDir) pickFolder.click(); else pickFiles.click(); });
 
   async function ingestFileList(list){
     const arr=[...list]; const wavs=arr.filter(f=>/\.wav$/i.test(f.name));
@@ -627,9 +654,9 @@
         rows.push({filename:f.name,alias:inferAlias(f.name),offset:0,consonant:0,cutoff:0,preutter:0,overlap:0});
       }
     }
-    renderAliasList();
+    renderAliasList(); renderParamGrid();
     if(rows.length && selectedRowIndex<0) selectRow(0);
-    $('btnSave').disabled = rows.length===0;
+    $('btnSave').disabled=rows.length===0;
     logMsg(`Detectados ${files.length} arquivos .wav`);
   }
   pickFolder.addEventListener('change',e=> ingestFileList(e.target.files));
@@ -648,18 +675,17 @@
     return idx;
   }
 
-  // DnD
   const leftPane=$('pane-files');
-  ['dragenter','dragover'].forEach(evt=>
-    leftPane.addEventListener(evt,ev=>{ev.preventDefault();ev.stopPropagation();leftPane.classList.add('drop-active');})
-  );
-  ['dragleave','drop'].forEach(evt=>
-    leftPane.addEventListener(evt,ev=>{ev.preventDefault();ev.stopPropagation();leftPane.classList.remove('drop-active');})
-  );
-  leftPane.addEventListener('drop', async ev=>{
+  ['dragenter','dragover'].forEach(evt=>{
+    leftPane.addEventListener(evt,ev=>{ev.preventDefault();ev.stopPropagation();leftPane.classList.add('drop-active');});
+  });
+  ['dragleave','drop'].forEach(evt=>{
+    leftPane.addEventListener(evt,ev=>{ev.preventDefault();ev.stopPropagation();leftPane.classList.remove('drop-active');});
+  });
+  leftPane.addEventListener('drop',async ev=>{
     const items=ev.dataTransfer?.items; const filesList=ev.dataTransfer?.files;
     if(items && items[0] && 'webkitGetAsEntry' in items[0]){
-      const all = await getAllFilesFromDataTransferItems(items); await ingestFileList(all);
+      const all=await getAllFilesFromDataTransferItems(items); await ingestFileList(all);
     } else if(filesList){ await ingestFileList(filesList); }
   });
   async function getAllFilesFromDataTransferItems(list){
@@ -695,17 +721,13 @@
     return [];
   }
 
-  /* ===== Carregar/Salvar oto.ini ===== */
-  $('btnOto').addEventListener('click', ()=> pickOto.click());
-  pickOto.addEventListener('change', async e=>{
+  $('btnOto').addEventListener('click',()=> pickOto.click());
+  pickOto.addEventListener('change',async e=>{
     const f=e.target.files[0]; if(!f) return;
-    lastOtoFileName=f.name||'';
-    lastOtoBuffer=await f.arrayBuffer();
+    lastOtoFileName=f.name||''; lastOtoBuffer=await f.arrayBuffer();
     await loadOtoFromBuffer(lastOtoBuffer,lastOtoFileName);
   });
-  encodingSelect.addEventListener('change', ()=>{
-    if(lastOtoBuffer) loadOtoFromBuffer(lastOtoBuffer,lastOtoFileName);
-  });
+  encodingSelect.addEventListener('change',()=>{ if(lastOtoBuffer) loadOtoFromBuffer(lastOtoBuffer,lastOtoFileName); });
 
   function saveOtoWithEncoding(enc){
     const content=serializeOto(rows); let blob;
@@ -732,11 +754,11 @@
     a.download='oto.ini';
     a.click();
   }
-  $('btnSave').addEventListener('click', ()=>{
+  $('btnSave').addEventListener('click',()=>{
     if(!rows.length) return;
     const preferred=lastOtoEncoding||'utf-8';
     const choice=prompt(
-      'Salvar como:\n1) UTF-8 (OpenUTAU)\n2) ANSI/Shift_JIS (UTAU legado JP)\n3) Mesma codificação lida ('+preferred+')\n\nDigite 1, 2 ou 3:',
+      'Salvar como:\n1) UTF-8 (RECOMENDADO)\n2) ANSI/Shift_JIS (EXPERIMENTATL)\n3) EXPERIMENTATL ('+preferred+')\n\nDigite 1, 2 ou 3:',
       '1'
     );
     let enc='utf-8';
@@ -745,11 +767,11 @@
     saveOtoWithEncoding(enc);
   });
 
-  /* ===== Lista / Filtro ===== */
+  /* Lista & filtro */
   function termsFromFilter(){
-    const raw = filterInput.value.trim();
-    if(!raw) return [];
-    const m = raw.match(/"([^"]+)"|(\S+)/g)||[];
+    const raw=filterInput.value.trim();
+    if(!raw) return[];
+    const m=raw.match(/"([^"]+)"|(\S+)/g)||[];
     return m.map(t=> t.replace(/^"|"$/g,''));
   }
   function matchFilter(r){
@@ -757,13 +779,9 @@
     const starredOnly=filterStarred.checked;
     if(starredOnly && !starSet.has(keyFor(r))) return false;
     if(!terms.length) return true;
-    const hay = (r.alias||'')+' '+(r.filename||'');
+    const hay=(r.alias||'')+' '+(r.filename||'');
     if(filterRegex.checked){
-      try{
-        return terms.some(t=> new RegExp(t,'i').test(hay));
-      }catch{
-        return true;
-      }
+      try{ return terms.some(t=> new RegExp(t,'i').test(hay)); }catch{ return true; }
     } else {
       const L=lower(hay);
       return terms.some(t=> L.includes(lower(t)));
@@ -778,11 +796,11 @@
   }
 
   function updateAliasInputState(){
-    const multi = selectedRowIndices && selectedRowIndices.length>1;
-    aliasIn.disabled = multi;
-    aliasIn.classList.toggle('opacity-60', multi);
-    aliasIn.classList.toggle('cursor-not-allowed', multi);
-    aliasIn.title = multi ? 'Alias bloqueado em multiseleção (não propaga para outros itens).' : '';
+    const multi=selectedRowIndices && selectedRowIndices.length>1;
+    aliasIn.disabled=multi;
+    aliasIn.classList.toggle('opacity-60',multi);
+    aliasIn.classList.toggle('cursor-not-allowed',multi);
+    aliasIn.title=multi?'Alias bloqueado em multiseleção (não propaga para outros itens).':'';
   }
 
   function renderAliasList(){
@@ -790,22 +808,21 @@
     aliasList.innerHTML='';
     ensurePrimarySelection();
     let selectedDom=null;
+
     rows.forEach((r,idx)=>{
       if(!matchFilter(r)) return;
-      const isSelected = selectedRowIndices?.includes(idx);
-      const hasFile = getFileIndexForFilename(r.filename)>=0;
-      const starred = starSet.has(keyFor(r));
+      const isSelected=selectedRowIndices?.includes(idx);
+      const hasFile=getFileIndexForFilename(r.filename)>=0;
+      const starred=starSet.has(keyFor(r));
 
       const div=document.createElement('div');
       div.className='alias-row flex items-center gap-2 px-2 py-2 text-sm rounded-md hover:bg-slate-500/10 cursor-pointer'+(isSelected?' selected':'');
-      const starBtn = `<button class="px-1 star" title="${starred?'Desmarcar ★':'Marcar ★'}">${starred?'★':'☆'}</button>`;
-      const aliasHtml = `<div class="font-mono text-xs truncate" title="${r.alias||'(sem alias)'}">${r.alias||'(sem alias)'}</div>`;
-      const wavHtml = hasFile
+      const starBtn=`<button class="px-1 star" title="${starred?'Desmarcar ★':'Marcar ★'}">${starred?'★':'☆'}</button>`;
+      const aliasHtml=`<div class="font-mono text-xs truncate" title="${r.alias||'(sem alias)'}">${r.alias||'(sem alias)'}</div>`;
+      const wavHtml=hasFile
         ? `<span class="tag" title="${basename(r.filename)}">${basename(r.filename)}</span>`
         : '<span class="tag" title=".wav ausente">! wav</span>';
-      div.innerHTML = `${starBtn} ${aliasHtml} <div class="ml-auto flex items-center gap-2">${wavHtml}</div>`;
-
-      if(idx===selectedRowIndex) div.dataset.selected="1";
+      div.innerHTML=`${starBtn} ${aliasHtml} <div class="ml-auto flex items-center gap-2">${wavHtml}</div>`;
 
       div.addEventListener('click',ev=>{
         if(ev.target && ev.target.classList.contains('star')){
@@ -817,7 +834,7 @@
           if(p>=0) selectedRowIndices.splice(p,1); else selectedRowIndices.push(idx);
           if(!selectedRowIndices.length){
             selectedRowIndex=-1; currentName.textContent='(nenhum arquivo)';
-            currentBuffer=null; drawAll(); renderAliasList(); return;
+            currentBuffer=null; drawAll(); renderAliasList(); renderParamGrid(); return;
           }
           selectedRowIndex=idx;
         } else if(ev.shiftKey && selectedRowIndices?.length){
@@ -834,55 +851,50 @@
       aliasList.appendChild(div);
       if(idx===selectedRowIndex) selectedDom=div;
     });
-    $('btnSave').disabled = rows.length===0;
-    updateStarCounter();
-    updateAliasInputState();
+    $('btnSave').disabled=rows.length===0;
+    updateStarCounter(); updateAliasInputState();
     if(selectedDom) selectedDom.scrollIntoView({block:'nearest'});
   }
 
-  filterInput.addEventListener('input',renderAliasList);
-  filterRegex.addEventListener('change',renderAliasList);
-  filterStarred.addEventListener('change',renderAliasList);
+  filterInput.addEventListener('input',()=>{renderAliasList();renderParamGrid();});
+  filterRegex.addEventListener('change',()=>{renderAliasList();renderParamGrid();});
+  filterStarred.addEventListener('change',()=>{renderAliasList();renderParamGrid();});
 
   btnSelectResults.addEventListener('click',()=>{
     selectedRowIndices=[];
     rows.forEach((r,i)=>{ if(matchFilter(r)) selectedRowIndices.push(i); });
-    if(selectedRowIndices.length){
-      selectedRowIndex=selectedRowIndices[0];
-      selectRow(selectedRowIndex);
-    }
-    renderAliasList();
+    if(selectedRowIndices.length){ selectedRowIndex=selectedRowIndices[0]; selectRow(selectedRowIndex); }
+    renderAliasList(); renderParamGrid();
   });
   btnClearSelection.addEventListener('click',()=>{
-    selectedRowIndices=[]; renderAliasList();
+    selectedRowIndices=[]; renderAliasList(); renderParamGrid();
   });
   btnStarResults.addEventListener('click',()=>{
-    const targets=[];
-    rows.forEach((r,i)=>{ if(matchFilter(r)) targets.push(i); });
-    const flipTo = targets.some(i=> !starSet.has(keyFor(rows[i])));
+    const targets=[]; rows.forEach((r,i)=>{ if(matchFilter(r)) targets.push(i); });
+    const flipTo=targets.some(i=> !starSet.has(keyFor(rows[i])));
     for(const i of targets){
       const k=keyFor(rows[i]);
       if(flipTo) starSet.add(k); else starSet.delete(k);
     }
-    saveStars(); renderAliasList();
+    saveStars(); renderAliasList(); renderParamGrid();
   });
 
   function toggleStar(idx){
     const k=keyFor(rows[idx]);
     if(starSet.has(k)) starSet.delete(k); else starSet.add(k);
-    saveStars(); renderAliasList();
+    saveStars(); renderAliasList(); renderParamGrid();
   }
   function toggleStarOnCurrent(){ if(selectedRowIndex<0) return; toggleStar(selectedRowIndex); }
 
-  /* ===== Seleção e WAV ===== */
-  let audioDecodeAborter = {aborted:false};
+  /* Seleção & audio */
+  let audioDecodeAborter={aborted:false};
+
   async function selectRow(rowIndex){
     if(!rows.length) return;
-    const prev = selectedRowIndex;
-    selectedRowIndex = clamp(rowIndex, 0, rows.length-1);
+    const prev=selectedRowIndex;
+    selectedRowIndex=clamp(rowIndex,0,rows.length-1);
     const r=rows[selectedRowIndex]; if(!r) return;
 
-    // marca automaticamente o anterior como concluído (★)
     if(prev>=0 && rows[prev]){
       starSet.add(keyFor(rows[prev]));
       saveStars(); updateStarCounter();
@@ -895,25 +907,24 @@
     if(fIdx>=0){
       audioDecodeAborter.aborted=true;
       audioDecodeAborter={aborted:false};
-      await decodeAndDraw(files[fIdx], audioDecodeAborter, fIdx);
+      await decodeAndDraw(files[fIdx],audioDecodeAborter,fIdx);
       const dur=currentBuffer.duration*1000, vw=getViewWindowMs(dur);
-      viewStartMs = clamp((r.offset||0) - vw/2, 0, Math.max(0, dur - vw));
+      viewStartMs=clamp((r.offset||0)-vw/2,0,Math.max(0,dur-vw));
     } else {
       srInfo.textContent=''; currentBuffer=null; drawAll();
     }
-    renderAliasList();
+    renderAliasList(); renderParamGrid();
   }
 
-  async function decodeAndDraw(item, aborter, fileIndex){
-    audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
-    const arrbuf = await fetch(item.url).then(r=>r.arrayBuffer());
+  async function decodeAndDraw(item,aborter,fileIndex){
+    audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+    const arrbuf=await fetch(item.url).then(r=>r.arrayBuffer());
     if(aborter.aborted) return;
-    currentBuffer = await audioCtx.decodeAudioData(arrbuf.slice(0));
+    currentBuffer=await audioCtx.decodeAudioData(arrbuf.slice(0));
     if(aborter.aborted) return;
-    srInfo.textContent = `• ${currentBuffer.sampleRate} Hz • ${currentBuffer.duration.toFixed(2)} s`;
+    srInfo.textContent=`• ${currentBuffer.sampleRate} Hz • ${currentBuffer.duration.toFixed(2)} s`;
     resizeCanvas();
 
-    // limpa cache e re-calcula espectrograma, se necessário
     specCache.delete(fileIndex);
     if(toggleSpec.checked){
       await ensureSpectrogramFor(fileIndex);
@@ -921,13 +932,12 @@
     drawAll();
   }
 
-  /* ===== Tempo <-> X ===== */
-  function getViewWindowMs(totalMs){ if(!totalMs) return 0; return Math.max(1, totalMs/Math.max(1, zoom)); }
+  function getViewWindowMs(totalMs){ if(!totalMs) return 0; return Math.max(1,totalMs/Math.max(1,zoom)); }
   function msToX(ms){
     if(!currentBuffer) return 0;
     const totalMs=currentBuffer.duration*1000;
     const vw=getViewWindowMs(totalMs);
-    return ((ms - viewStartMs)/vw) * wave.width;
+    return ((ms-viewStartMs)/vw)*wave.width;
   }
   function xToMs(x){
     if(!currentBuffer) return 0;
@@ -936,10 +946,9 @@
     return viewStartMs + (x/wave.width)*vw;
   }
 
-  /* ===== Waveform ===== */
   function drawWave(){
-    const W=wave.width, H=wave.height, c=ctxWave;
-    const {waveBg,waveColor} = getWaveColors();
+    const W=wave.width,H=wave.height,c=ctxWave;
+    const {waveBg,waveColor}=getWaveColors();
     c.clearRect(0,0,W,H);
     c.fillStyle=waveBg; c.fillRect(0,0,W,H);
     c.strokeStyle=getComputedStyle(document.body).getPropertyValue('--grid')||'#e5e7eb';
@@ -950,11 +959,11 @@
       const totalMs=currentBuffer.duration*1000;
       const totalSamples=ch.length;
       const vw=getViewWindowMs(totalMs);
-      const startMs=viewStartMs, endMs=startMs+vw;
+      const startMs=viewStartMs,endMs=startMs+vw;
       const startSamp=Math.floor((startMs/totalMs)*totalSamples);
-      const endSamp=Math.min(totalSamples, Math.ceil((endMs/totalMs)*totalSamples));
-      const samplesInView=Math.max(1, endSamp-startSamp);
-      const step=Math.max(1, Math.floor(samplesInView/W));
+      const endSamp=Math.min(totalSamples,Math.ceil((endMs/totalMs)*totalSamples));
+      const samplesInView=Math.max(1,endSamp-startSamp);
+      const step=Math.max(1,Math.floor(samplesInView/W));
 
       c.beginPath();
       let x=0;
@@ -963,8 +972,8 @@
         for(let j=0;j<step&&i+j<endSamp;j++){
           const v=ch[i+j]; if(v<min)min=v; if(v>max)max=v;
         }
-        const mid=H/2, scale=H*0.45*(vzoom||1);
-        c.moveTo(x, mid + min*scale); c.lineTo(x, mid + max*scale);
+        const mid=H/2,scale=H*0.45*(vzoom||1);
+        c.moveTo(x,mid+min*scale); c.lineTo(x,mid+max*scale);
         x+=1;
       }
       c.strokeStyle=waveColor;
@@ -978,13 +987,13 @@
 
   function drawParamFills(){
     if(!currentBuffer || selectedRowIndex<0) return;
-    const p=rows[selectedRowIndex], totalMs=currentBuffer.duration*1000;
+    const p=rows[selectedRowIndex],totalMs=currentBuffer.duration*1000;
     const off=clamp(round0(p.offset||0),0,totalMs);
     const consDur=clamp(round0(p.consonant||0),0,Math.max(0,totalMs-off));
     const c=round0(p.cutoff||0);
-    const consStart=off, consEnd=clamp(off+consDur,0,totalMs), cutAbs=clamp(off+Math.abs(c),0,totalMs);
+    const consStart=off,consEnd=clamp(off+consDur,0,totalMs),cutAbs=clamp(off+Math.abs(c),0,totalMs);
     const f=(x1,x2,color,a)=>{
-      const ctx=ctxWave, W=ctx.canvas.width;
+      const ctx=ctxWave,W=ctx.canvas.width;
       const a1=Math.max(0,Math.min(W,Math.min(x1,x2)));
       const b1=Math.max(0,Math.min(W,Math.max(x1,x2)));
       if(b1<=a1) return;
@@ -1043,72 +1052,65 @@
     });
   }
 
-  /* ===== Spectrograma (DFT) ===== */
-  function hann(N){
-    const w=new Float32Array(N);
-    for(let n=0;n<N;n++) w[n]=0.5*(1-Math.cos(2*Math.PI*n/(N-1)));
-    return w;
-  }
-  const HANN_512 = hann(512);
+  /* Espectrograma */
+  function hann(N){const w=new Float32Array(N);for(let n=0;n<N;n++)w[n]=0.5*(1-Math.cos(2*Math.PI*n/(N-1)));return w;}
+  const HANN_512=hann(512);
 
   async function ensureSpectrogramFor(fileIndex){
     if(specCache.has(fileIndex)){ drawSpectrogram(fileIndex); return; }
     if(!currentBuffer) return;
     const ch=currentBuffer.getChannelData(0);
-    const N=512, hop=256;
+    const N=512,hop=256;
     const rowsCount=N/2;
-    const frames = Math.max(1, Math.floor((ch.length - N)/hop)+1);
-    const data = new Float32Array(frames*rowsCount);
-    let minDB=+Infinity, maxDB=-Infinity;
-    const w = HANN_512;
-    const TWO_PI = 2*Math.PI;
+    const frames=Math.max(1,Math.floor((ch.length-N)/hop)+1);
+    const data=new Float32Array(frames*rowsCount);
+    let minDB=+Infinity,maxDB=-Infinity;
+    const w=HANN_512;
+    const TWO_PI=2*Math.PI;
 
-    for(let frame=0; frame<frames; frame++){
-      const start = frame*hop;
-      for(let bin=0; bin<rowsCount; bin++){
-        const freq = TWO_PI*bin/N;
-        const cosTheta=Math.cos(freq), sinTheta=Math.sin(freq);
-        let cos_n=1, sin_n=0;
-        let re=0, im=0;
+    for(let frame=0;frame<frames;frame++){
+      const start=frame*hop;
+      for(let bin=0;bin<rowsCount;bin++){
+        const freq=TWO_PI*bin/N;
+        const cosTheta=Math.cos(freq),sinTheta=Math.sin(freq);
+        let cos_n=1,sin_n=0,re=0,im=0;
         for(let n=0;n<N;n++){
-          const sample = (ch[start+n]||0)*w[n];
-          re += sample * cos_n;
-          im -= sample * sin_n;
-          const tmp = cos_n;
-          cos_n = tmp*cosTheta - sin_n*sinTheta;
-          sin_n = tmp*sinTheta + sin_n*cosTheta;
+          const sample=(ch[start+n]||0)*w[n];
+          re+=sample*cos_n;
+          im-=sample*sin_n;
+          const tmp=cos_n;
+          cos_n=tmp*cosTheta - sin_n*sinTheta;
+          sin_n=tmp*sinTheta + sin_n*cosTheta;
         }
-        const mag = Math.sqrt(re*re + im*im);
-        const db = 20*Math.log10(mag+1e-8);
-        data[frame*rowsCount + bin] = db;
-        if(db<minDB) minDB=db;
-        if(db>maxDB) maxDB=db;
+        const mag=Math.sqrt(re*re+im*im);
+        const db=20*Math.log10(mag+1e-8);
+        data[frame*rowsCount+bin]=db;
+        if(db<minDB)minDB=db;
+        if(db>maxDB)maxDB=db;
       }
     }
     specCache.set(fileIndex,{cols:frames,rows:rowsCount,data,minDB,maxDB,hop,N});
     drawSpectrogram(fileIndex);
   }
-
   function colorMap(t){
-    t = clamp(t,0,1);
-    const r = Math.min(255, Math.max(0, Math.floor(255 * (1.5*t))));
-    const g = Math.min(255, Math.max(0, Math.floor(255 * Math.pow(t,1.5))));
-    const b = Math.min(255, Math.max(0, Math.floor(255 * (t<0.5?(0.5- t): (1.0 - t))*1.6 )));
-    return [r,g,b,255];
+    t=clamp(t,0,1);
+    const r=Math.min(255,Math.max(0,Math.floor(255*(1.5*t))));
+    const g=Math.min(255,Math.max(0,Math.floor(255*Math.pow(t,1.5))));
+    const b=Math.min(255,Math.max(0,Math.floor(255*(t<0.5?(0.5-t):(1.0-t))*1.6)));
+    return[r,g,b,255];
   }
-
   function drawSpectrogram(fileIndex){
     const cache=specCache.get(fileIndex);
-    SPEC_WRAP.classList.toggle('hidden', !toggleSpec.checked);
+    SPEC_WRAP.classList.toggle('hidden',!toggleSpec.checked);
     if(!toggleSpec.checked || !cache || !currentBuffer) return;
 
     const totalMs=currentBuffer.duration*1000;
     const vw=getViewWindowMs(totalMs);
     const totalCols=cache.cols;
-    const msPerHop = 1000 * cache.hop / currentBuffer.sampleRate;
-    const colStart = Math.max(0, Math.floor(viewStartMs / msPerHop));
-    const colEnd   = Math.min(totalCols-1, Math.ceil((viewStartMs+vw) / msPerHop));
-    const viewCols = Math.max(1, colEnd - colStart + 1);
+    const msPerHop=1000*cache.hop/currentBuffer.sampleRate;
+    const colStart=Math.max(0,Math.floor(viewStartMs/msPerHop));
+    const colEnd=Math.min(totalCols-1,Math.ceil((viewStartMs+vw)/msPerHop));
+    const viewCols=Math.max(1,colEnd-colStart+1);
 
     const ratio=Math.max(1,Math.floor(devicePixelRatio||1));
     const wrapW=spec.parentElement.getBoundingClientRect().width;
@@ -1117,36 +1119,35 @@
     sctx.setTransform(ratio,0,0,ratio,0,0);
     sctx.clearRect(0,0,spec.width,spec.height);
 
-    const W=spec.width, H=spec.height, rowsCount=cache.rows;
+    const W=spec.width,H=spec.height,rowsCount=cache.rows;
     const img=sctx.createImageData(W,H);
-    const min=cache.minDB, max=cache.maxDB;
+    const min=cache.minDB,max=cache.maxDB;
 
     for(let x=0;x<W;x++){
-      const col = colStart + Math.floor((x/W)*viewCols);
-      const base = col*rowsCount;
+      const col=colStart+Math.floor((x/W)*viewCols);
+      const base=col*rowsCount;
       for(let y=0;y<H;y++){
-        const bin = Math.floor((1 - y/H) * (rowsCount-1));
-        const v = cache.data[base + bin];
-        const t = (v - min) / Math.max(1e-6, (max - min));
+        const bin=Math.floor((1-y/H)*(rowsCount-1));
+        const v=cache.data[base+bin];
+        const t=(v-min)/Math.max(1e-6,(max-min));
         const [r,g,b,a]=colorMap(t);
-        const idx = (y*W + x)*4;
+        const idx=(y*W+x)*4;
         img.data[idx]=r; img.data[idx+1]=g; img.data[idx+2]=b; img.data[idx+3]=a;
       }
     }
     sctx.putImageData(img,0,0);
   }
 
-  /* ===== Mini, composição e interação ===== */
   function drawMini(){
-    const W=mini.width, H=mini.height, c=mctx;
-    const {waveBg,waveColor} = getWaveColors();
+    const W=mini.width,H=mini.height,c=mctx;
+    const {waveBg,waveColor}=getWaveColors();
     c.clearRect(0,0,W,H);
     c.fillStyle=waveBg; c.fillRect(0,0,W,H);
     c.strokeStyle=getComputedStyle(document.body).getPropertyValue('--grid')||'#e5e7eb';
     c.beginPath(); c.moveTo(0,H/2); c.lineTo(W,H/2); c.stroke();
     if(!currentBuffer) return;
     const ch=currentBuffer.getChannelData(0);
-    const step=Math.max(1, Math.floor(ch.length/W));
+    const step=Math.max(1,Math.floor(ch.length/W));
     c.beginPath();
     let x=0;
     for(let i=0;i<ch.length;i+=step){
@@ -1154,7 +1155,7 @@
       for(let j=0;j<step&&i+j<ch.length;j++){
         const v=ch[i+j]; if(v<min)min=v; if(v>max)max=v;
       }
-      const mid=H/2, scale=H*0.4;
+      const mid=H/2,scale=H*0.4;
       c.moveTo(x,mid+min*scale); c.lineTo(x,mid+max*scale);
       x+=1;
     }
@@ -1179,12 +1180,12 @@
     }
   }
 
-  labelsWrap.addEventListener('click', e=>{
+  labelsWrap.addEventListener('click',e=>{
     const m=e.target?.dataset?.mid; if(!m) return;
     selectedMarkerId=m; drawAll();
   });
 
-  function setParamSmart(id, msAbs){
+  function setParamSmart(id,msAbs){
     if(selectedRowIndex<0) return;
     const p=rows[selectedRowIndex];
     const before={...p};
@@ -1205,74 +1206,67 @@
       p[id]=Math.round(clamp(rel,0,Math.max(0,totalMs-(p.offset||0))));
     }
     syncInputsFromRow(p);
-    pushPatch(selectedRowIndex,before,{...p},'Ajuste '+id+' -> '+String(p[id]||0)+'ms');
-    refreshOtoView(); drawAll();
+    pushPatch(selectedRowIndex,before,{...p},'Ajuste '+id);
+    refreshOtoView(); renderAliasList(); renderParamGrid(); drawAll();
     starSet.add(keyFor(p)); saveStars(); updateStarCounter();
   }
 
-  labelsWrap.addEventListener('mousedown', e=>{
+  labelsWrap.addEventListener('mousedown',e=>{
     const t=e.target; if(!t.classList.contains('handle')) return;
     e.preventDefault(); const id=t.dataset.mid;
     const onMove=ev=>{
       const rect=wave.getBoundingClientRect();
-      const x=clamp(ev.clientX - rect.left,0,rect.width);
-      setParamSmart(id, xToMs(x));
+      const x=clamp(ev.clientX-rect.left,0,rect.width);
+      setParamSmart(id,xToMs(x));
     };
-    const onUp=()=>{ removeEventListener('mousemove',onMove); removeEventListener('mouseup',onUp); };
+    const onUp=()=>{removeEventListener('mousemove',onMove);removeEventListener('mouseup',onUp);};
     addEventListener('mousemove',onMove); addEventListener('mouseup',onUp);
   });
 
   function updateMouse(e){
     const r=wave.getBoundingClientRect();
-    lastMouseX=clamp(e.clientX - r.left, 0, r.width);
+    lastMouseX=clamp(e.clientX-r.left,0,r.width);
   }
-  wave.addEventListener('mousemove', e=>{
+  wave.addEventListener('mousemove',e=>{
     updateMouse(e);
     const rect=wave.getBoundingClientRect();
-    const x=clamp(e.clientX - rect.left,0,rect.width);
+    const x=clamp(e.clientX-rect.left,0,rect.width);
     cursorMs=xToMs(x); drawAll();
   });
 
-  wave.addEventListener('wheel', e=>{
+  wave.addEventListener('wheel',e=>{
     if(!currentBuffer) return;
     const rect=wave.getBoundingClientRect();
-    const x=clamp(e.clientX - rect.left,0,rect.width);
-    const hasCtrl = e.ctrlKey || e.metaKey;
-    const hasShift = e.shiftKey;
-    const hasAlt = e.altKey;
+    const x=clamp(e.clientX-rect.left,0,rect.width);
+    const hasCtrl=e.ctrlKey||e.metaKey;
+    const hasShift=e.shiftKey;
+    const hasAlt=e.altKey;
 
-    // Sem modificadores → navegar aliases
     if(!hasCtrl && !hasShift && !hasAlt){
       e.preventDefault();
       if(e.deltaY>0 && selectedRowIndex<rows.length-1) selectRow(selectedRowIndex+1);
       else if(e.deltaY<0 && selectedRowIndex>0) selectRow(selectedRowIndex-1);
       return;
     }
-
-    // Shift+Roda → rolar janela (pan)
     if(hasShift && !hasCtrl && !hasAlt){
       e.preventDefault();
       const totalMs=currentBuffer.duration*1000;
       const vw=getViewWindowMs(totalMs);
       const dir=e.deltaY>0?1:-1;
       const delta=vw*0.1*dir;
-      viewStartMs=clamp(viewStartMs+delta, 0, Math.max(0,totalMs-vw));
+      viewStartMs=clamp(viewStartMs+delta,0,Math.max(0,totalMs-vw));
       drawAll();
       return;
     }
-
-    // Alt+Roda → V-Zoom
     if(hasAlt && !hasCtrl){
       e.preventDefault();
-      vzoom=clamp((vzoom||1) * (e.deltaY>0?1/1.1:1.1), 0.25, 4);
+      vzoom=clamp((vzoom||1)*(e.deltaY>0?1/1.1:1.1),0.25,4);
       vzoomSlider.value=String(vzoom);
       vzoomLabel.textContent=vzoom.toFixed(2)+'×';
       prefs.vzoom=vzoom; savePrefs();
       drawAll();
       return;
     }
-
-    // Ctrl+Roda → H-Zoom
     if(hasCtrl && !hasAlt){
       e.preventDefault();
       const anchorMs=xToMs(x);
@@ -1283,30 +1277,28 @@
       zoomLabel.textContent=`${Math.round(zoom)}×`;
       const totalMs=currentBuffer.duration*1000;
       const vw=getViewWindowMs(totalMs);
-      viewStartMs=clamp(anchorMs - (x/wave.width)*vw, 0, Math.max(0,totalMs-vw));
+      viewStartMs=clamp(anchorMs-(x/wave.width)*vw,0,Math.max(0,totalMs-vw));
       drawAll();
       return;
     }
-  }, {passive:false});
+  },{passive:false});
 
-  wave.addEventListener('click', ()=>{
+  wave.addEventListener('click',()=>{
     if(!currentBuffer || selectedRowIndex<0) return;
-    const p=rows[selectedRowIndex], totalMs=currentBuffer.duration*1000;
+    const p=rows[selectedRowIndex],totalMs=currentBuffer.duration*1000;
     const offsetMs=clamp(Math.round(p.offset||0),0,totalMs);
     const c=Math.round(p.cutoff||0);
     let cutoffMs=clamp(offsetMs+Math.abs(c),0,totalMs);
     if(cutoffMs<=offsetMs) cutoffMs=totalMs;
-    playRegion(offsetMs/1000, cutoffMs/1000);
+    playRegion(offsetMs/1000,cutoffMs/1000);
   });
 
   function playRegion(startSec,endSec){
     if(!currentBuffer) return;
     if(source){
-      try{source.stop();}catch{}
-      try{source.disconnect();}catch{}
-      source=null;
+      try{source.stop();}catch{} try{source.disconnect();}catch{} source=null;
     }
-    audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+    audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
     audioCtx.resume();
     source=audioCtx.createBufferSource();
     source.buffer=currentBuffer;
@@ -1317,25 +1309,22 @@
     source.onended=()=>{source=null;};
   }
 
-  $('btnPlay').addEventListener('click', ()=>{
+  $('btnPlay').addEventListener('click',()=>{
     if(!currentBuffer) return;
     if(source){
-      try{source.stop();}catch{}
-      try{source.disconnect();}catch{}
-      source=null;
+      try{source.stop();}catch{} try{source.disconnect();}catch{} source=null;
     } else {
       audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
       audioCtx.resume();
       source=audioCtx.createBufferSource();
       source.buffer=currentBuffer;
       source.connect(audioCtx.destination);
-      source.start(audioCtx.currentTime+0.01, Math.max(0,cursorMs/1000));
+      source.start(audioCtx.currentTime+0.01,Math.max(0,cursorMs/1000));
       source.onended=()=>{source=null;};
     }
   });
 
-  /* ===== Parâmetros <-> UI ===== */
-  function getCurrentRow(){ return selectedRowIndex>=0 ? rows[selectedRowIndex] : null; }
+  function getCurrentRow(){ return selectedRowIndex>=0?rows[selectedRowIndex]:null; }
   function loadParamsToUI(){
     const p=getCurrentRow(); if(!p) return;
     aliasIn.value=p.alias||'';
@@ -1356,10 +1345,9 @@
     overlapIn.value=fmt(p.overlap||0);
   }
 
-  // inputs numéricos: setinhas não passam para o atalho global
-  [offsetIn, consonantIn, cutoffIn, preutterIn, overlapIn].forEach(inp=>{
-    inp.addEventListener('keydown', e=>{
-      if(e.key==='ArrowUp' || e.key==='ArrowDown') e.stopPropagation();
+  [offsetIn,consonantIn,cutoffIn,preutterIn,overlapIn].forEach(inp=>{
+    inp.addEventListener('keydown',e=>{
+      if(e.key==='ArrowUp'||e.key==='ArrowDown') e.stopPropagation();
     });
   });
 
@@ -1373,21 +1361,19 @@
       p.alias=aliasIn.value;
       p.offset=Math.round(clamp(Number(offsetIn.value)||0,0,totalMs));
       p.consonant=Math.round(clamp(Number(consonantIn.value)||0,0,Math.max(0,totalMs-p.offset)));
-      { const raw=Math.abs(Number(cutoffIn.value)||0); const maxRel=Math.max(0,totalMs-p.offset); const rel=clamp(raw,0,maxRel); p.cutoff=-Math.round(rel); }
+      {const raw=Math.abs(Number(cutoffIn.value)||0);const maxRel=Math.max(0,totalMs-p.offset);const rel=clamp(raw,0,maxRel);p.cutoff=-Math.round(rel);}
       p.preutter=Math.round(clamp(Number(preutterIn.value)||0,0,Math.max(0,totalMs-p.offset)));
       p.overlap=Math.round(clamp(Number(overlapIn.value)||0,0,Math.max(0,totalMs-p.offset)));
       syncInputsFromRow(p);
       pushPatch(mainIndex,before,{...p},'Editar campos do alias');
 
-      // aplicação em lote (menos alias)
       if(selectedRowIndices && selectedRowIndices.length>1){
         selectedRowIndices.forEach(idx=>{
           if(idx===mainIndex) return;
           const t=rows[idx]; if(!t) return;
           const b={...t};
           if(fieldId==='alias'){
-            // alias é protegido em multiseleção
-            return;
+            return; // alias protegido
           } else if(fieldId==='offset') t.offset=p.offset;
           else if(fieldId==='consonant') t.consonant=p.consonant;
           else if(fieldId==='cutoff') t.cutoff=p.cutoff;
@@ -1398,7 +1384,7 @@
         });
         saveStars();
       }
-      refreshOtoView(); drawAll(); renderAliasList();
+      refreshOtoView(); renderAliasList(); renderParamGrid(); drawAll();
       starSet.add(keyFor(p)); saveStars(); updateStarCounter();
     });
   });
@@ -1419,10 +1405,9 @@
       }
       selectedRowIndex=keepIdx>=0?keepIdx:Math.min(selectedRowIndex,rows.length-1);
     }
-    drawAll(); renderAliasList();
+    drawAll(); renderAliasList(); renderParamGrid();
   });
 
-  // mini interações
   let draggingMini=false;
   mini.addEventListener('mousedown',e=>{
     if(!currentBuffer) return;
@@ -1443,11 +1428,10 @@
   function centerViewAtMs(ms){
     const totalMs=currentBuffer.duration*1000;
     const vw=getViewWindowMs(totalMs);
-    viewStartMs=clamp(ms - vw/2,0,Math.max(0,totalMs-vw));
+    viewStartMs=clamp(ms-vw/2,0,Math.max(0,totalMs-vw));
     drawAll();
   }
 
-  // sliders
   zoomSlider.addEventListener('input',e=>{
     if(!currentBuffer) return;
     zoom=clamp(Number(e.target.value)||1,1,128);
@@ -1464,10 +1448,9 @@
     drawAll();
   });
 
-  // espectrograma toggle
-  toggleSpec.addEventListener('change', async ()=>{
-    prefs.showSpec = toggleSpec.checked; savePrefs();
-    SPEC_WRAP.classList.toggle('hidden', !toggleSpec.checked);
+  toggleSpec.addEventListener('change',async()=>{
+    prefs.showSpec=toggleSpec.checked; savePrefs();
+    SPEC_WRAP.classList.toggle('hidden',!toggleSpec.checked);
     if(toggleSpec.checked && selectedRowIndex>=0){
       const fIdx=getFileIndexForFilename(rows[selectedRowIndex]?.filename||'');
       if(fIdx>=0) await ensureSpectrogramFor(fIdx);
@@ -1485,52 +1468,222 @@
   ro.observe(qs('#pane-wave .card-body'));
   addEventListener('resize',()=>{ resizeCanvas(); drawAll(); });
 
-  // atalhos de navegação/edição
-  addEventListener('keydown',e=>{
-    const el = document.activeElement;
-    const isForm = el && (el.tagName==='INPUT' || el.tagName==='TEXTAREA' || el.isContentEditable);
+  /* PLANILHA ======================================================= */
+  const gridFields=['filename','offset','overlap','preutter','consonant','cutoff','alias'];
+  const fieldIndex={}; gridFields.forEach((f,i)=> fieldIndex[f]=i);
+  let gridSelection={anchor:null,cells:new Set()};
 
-    // Undo / Redo
-    if(e.ctrlKey && !e.shiftKey && (e.key==='z' || e.key==='Z')){
-      if(isForm) return; // deixa o Ctrl+Z nativo para inputs
+  function cellKey(r,f){ return r+':'+f; }
+
+  function applyGridSelectionStyles(){
+    qsa('#gridBody td.grid-cell').forEach(td=>{
+      const k=cellKey(Number(td.dataset.row),td.dataset.field);
+      td.classList.toggle('selected',gridSelection.cells.has(k));
+    });
+  }
+
+  function renderParamGrid(){
+    const html=[];
+    rows.forEach((r,i)=>{
+      const row=[];
+      row.push(
+        `<td class="grid-cell readonly" data-row="${i}" data-field="filename">
+           <input value="${(r.filename||'').replace(/"/g,'&quot;')}" readonly />
+         </td>`
+      );
+      row.push(
+        `<td class="grid-cell" data-row="${i}" data-field="offset"><input type="number" value="${fmt(r.offset||0)}" /></td>`,
+        `<td class="grid-cell" data-row="${i}" data-field="overlap"><input type="number" value="${fmt(r.overlap||0)}" /></td>`,
+        `<td class="grid-cell" data-row="${i}" data-field="preutter"><input type="number" value="${fmt(r.preutter||0)}" /></td>`,
+        `<td class="grid-cell" data-row="${i}" data-field="consonant"><input type="number" value="${fmt(r.consonant||0)}" /></td>`,
+        `<td class="grid-cell" data-row="${i}" data-field="cutoff"><input type="number" value="${fmt(r.cutoff||0)}" /></td>`,
+        `<td class="grid-cell" data-row="${i}" data-field="alias"><input type="text" value="${(r.alias||'').replace(/"/g,'&quot;')}" /></td>`
+      );
+      html.push('<tr>'+row.join('')+'</tr>');
+    });
+    gridBody.innerHTML=html.join('');
+    applyGridSelectionStyles();
+  }
+
+  gridBody.addEventListener('click',e=>{
+    const td=e.target.closest('td.grid-cell'); if(!td) return;
+    const row=Number(td.dataset.row); const field=td.dataset.field;
+    const key=cellKey(row,field);
+    const ctrl=e.ctrlKey||e.metaKey; const shift=e.shiftKey;
+
+    if(shift && gridSelection.anchor){
+      const a=gridSelection.anchor;
+      const r1=Math.min(a.row,row),r2=Math.max(a.row,row);
+      const c1=Math.min(fieldIndex[a.field],fieldIndex[field]);
+      const c2=Math.max(fieldIndex[a.field],fieldIndex[field]);
+      const cells=new Set();
+      for(let rr=r1;rr<=r2;rr++){
+        for(let cc=c1;cc<=c2;cc++){
+          cells.add(cellKey(rr,gridFields[cc]));
+        }
+      }
+      gridSelection.cells=cells;
+    } else if(ctrl){
+      if(gridSelection.cells.has(key)) gridSelection.cells.delete(key);
+      else gridSelection.cells.add(key);
+      if(!gridSelection.anchor) gridSelection.anchor={row,field};
+    } else {
+      gridSelection.cells=new Set([key]);
+      gridSelection.anchor={row,field};
+    }
+    applyGridSelectionStyles();
+
+    const input=td.querySelector('input'); if(input && !td.classList.contains('readonly')) input.focus();
+  });
+
+  gridBody.addEventListener('change',e=>{
+    const input=e.target; if(!(input instanceof HTMLInputElement)) return;
+    const td=input.closest('td.grid-cell'); if(!td) return;
+    const rowIdx=Number(td.dataset.row); const field=td.dataset.field;
+    if(!rows[rowIdx]) return;
+    const val=input.value;
+
+    const numeric = !['alias','filename'].includes(field);
+    const targets=[];
+    const thisKey=cellKey(rowIdx,field);
+    if(gridSelection.cells.size>1 && gridSelection.cells.has(thisKey)){
+      gridSelection.cells.forEach(k=>{
+        const [r,f]=k.split(':');
+        if(f===field) targets.push(Number(r));
+      });
+    } else {
+      targets.push(rowIdx);
+    }
+
+    targets.forEach(idx=>{
+      const row=rows[idx]; if(!row) return;
+      const before={...row};
+      if(field==='alias') row.alias=val;
+      else if(field!=='filename') row[field]=numeric?(Number(val)||0):val;
+      pushPatch(idx,before,{...row},'Editar planilha');
+      starSet.add(keyFor(row));
+    });
+    saveStars();
+    refreshOtoView(); renderAliasList(); renderParamGrid(); drawAll(); updateStarCounter();
+  });
+
+  async function copyGridSelection(){
+    if(!gridSelection.cells.size) return;
+    const positions=[...gridSelection.cells].map(k=>{
+      const [r,f]=k.split(':'); return{row:Number(r),field:f};
+    });
+    const rowsSet=[...new Set(positions.map(p=>p.row))].sort((a,b)=>a-b);
+    const colsSet=[...new Set(positions.map(p=>fieldIndex[p.field]))].sort((a,b)=>a-b);
+    let lines=[];
+    rowsSet.forEach(r=>{
+      const line=[];
+      colsSet.forEach(ci=>{
+        const field=gridFields[ci]; const row=rows[r];
+        if(!row){ line.push(''); return;}
+        let v='';
+        if(field==='filename') v=row.filename||'';
+        else if(field==='alias') v=row.alias||'';
+        else v=String(row[field]??0);
+        line.push(v);
+      });
+      lines.push(line.join('\t'));
+    });
+    const text=lines.join('\n');
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      try{await navigator.clipboard.writeText(text);}catch{}
+    } else {
+      const ta=document.createElement('textarea');
+      ta.value=text; document.body.appendChild(ta); ta.select();
+      try{document.execCommand('copy');}catch{}
+      document.body.removeChild(ta);
+    }
+  }
+
+  async function pasteGridFromClipboard(){
+    if(!gridSelection.anchor) return;
+    let text='';
+    if(navigator.clipboard && navigator.clipboard.readText){
+      try{text=await navigator.clipboard.readText();}catch{}
+    }
+    if(!text) return;
+    const lines=text.split(/\r?\n/);
+    const anchor=gridSelection.anchor;
+    const startRow=anchor.row;
+    const startCol=fieldIndex[anchor.field];
+
+    const patches=[];
+    lines.forEach((line,ri)=>{
+      if(!line.length) return;
+      const cols=line.split('\t');
+      cols.forEach((val,ci)=>{
+        const rIdx=startRow+ri;
+        const cIdx=startCol+ci;
+        if(rIdx>=rows.length || cIdx>=gridFields.length) return;
+        const field=gridFields[cIdx];
+        if(field==='filename') return;
+        const row=rows[rIdx]; if(!row) return;
+        const before={...row};
+        if(field==='alias') row.alias=val;
+        else row[field]=Number(val)||0;
+        patches.push({index:rIdx,before,after:{...row}});
+        starSet.add(keyFor(row));
+      });
+    });
+    patches.forEach(p=> pushPatch(p.index,p.before,p.after,'Colar planilha'));
+    saveStars();
+    refreshOtoView(); renderAliasList(); renderParamGrid(); drawAll(); updateStarCounter();
+  }
+
+  /* Atalhos globais */
+  addEventListener('keydown',e=>{
+    const el=document.activeElement;
+    const isForm=el && (el.tagName==='INPUT' || el.tagName==='TEXTAREA' || el.isContentEditable);
+    const inGrid=qs('#pane-grid')?.contains(el);
+
+    if(e.ctrlKey && !e.shiftKey && (e.key==='z'||e.key==='Z')){
+      if(isForm && !inGrid) return;
       e.preventDefault(); undoOnce(); return;
     }
-    if(e.ctrlKey && !e.shiftKey && (e.key==='y' || e.key==='Y')){
-      if(isForm) return;
+    if(e.ctrlKey && !e.shiftKey && (e.key==='y'||e.key==='Y')){
+      if(isForm && !inGrid) return;
       e.preventDefault(); redoOnce(); return;
     }
 
+    if(inGrid && e.ctrlKey && (e.key==='c'||e.key==='C')){
+      e.preventDefault(); copyGridSelection(); return;
+    }
+    if(inGrid && e.ctrlKey && (e.key==='v'||e.key==='V')){
+      e.preventDefault(); pasteGridFromClipboard(); return;
+    }
+
     if(selectedRowIndex<0 && !rows.length) return;
-    const k=e.key, ku=k.toUpperCase();
+    const k=e.key,ku=k.toUpperCase();
 
     if(ku==='Y' && !e.ctrlKey && !e.metaKey){
       $('btnPlay').click(); return;
     }
 
-    // Duplicar: Shift+0
     if(k==='0' && e.shiftKey){
       const p=getCurrentRow(); if(!p) return;
       const copy={...p};
       rows.splice(selectedRowIndex+1,0,copy);
       pushAction({type:'insert',index:selectedRowIndex+1,row:{...copy}},'Duplicar linha (Shift+0)');
       selectedRowIndex++; selectedRowIndices=[selectedRowIndex];
-      renderAliasList(); refreshOtoView(); selectRow(selectedRowIndex); return;
+      renderAliasList(); renderParamGrid(); refreshOtoView(); selectRow(selectedRowIndex); return;
     }
 
-    // Renomear: Shift+9
     if(k==='9' && e.shiftKey){
       const p=getCurrentRow(); if(!p) return;
-      const novo=prompt('Novo alias:', p.alias||'');
+      const novo=prompt('Novo alias:',p.alias||'');
       if(novo!==null){
         const before={...p};
         p.alias=novo;
         pushPatch(selectedRowIndex,before,{...p},'Renomear alias (Shift+9)');
-        syncInputsFromRow(p); refreshOtoView(); renderAliasList();
+        syncInputsFromRow(p); refreshOtoView(); renderAliasList(); renderParamGrid();
       }
       return;
     }
 
-    // Deletar: Shift+D
     if(e.shiftKey && ku==='D'){
       if(selectedRowIndex<0||!rows.length) return;
       const idx=selectedRowIndex;
@@ -1538,19 +1691,19 @@
       pushAction({type:'remove',index:idx,row:{...removed}},'Deletar alias');
       selectedRowIndex=Math.min(idx,rows.length-1);
       selectedRowIndices=selectedRowIndex>=0?[selectedRowIndex]:[];
-      renderAliasList(); refreshOtoView();
-      if(rows.length) selectRow(selectedRowIndex); else { currentName.textContent='(nenhum arquivo)'; drawAll(); }
+      renderAliasList(); renderParamGrid(); refreshOtoView();
+      if(rows.length) selectRow(selectedRowIndex); else {currentName.textContent='(nenhum arquivo)';drawAll();}
       return;
     }
 
     if(k==='ArrowDown'){
-      if(isForm) return;
+      if(isForm && !inGrid) return;
       e.preventDefault();
       if(selectedRowIndex<rows.length-1){ selectedRowIndices=[selectedRowIndex+1]; selectRow(selectedRowIndex+1); }
       return;
     }
     if(k==='ArrowUp'){
-      if(isForm) return;
+      if(isForm && !inGrid) return;
       e.preventDefault();
       if(selectedRowIndex>0){ selectedRowIndices=[selectedRowIndex-1]; selectRow(selectedRowIndex-1); }
       return;
@@ -1559,42 +1712,35 @@
     const m=markers.find(mm=> mm.key===ku);
     if(!m) return;
     const msAbs=(lastMouseX!=null)?xToMs(lastMouseX):cursorMs;
-    setParamSmart(m.id, msAbs);
+    setParamSmart(m.id,msAbs);
   });
 
-  // Toggle ★ com S
   addEventListener('keydown',e=>{
     if(selectedRowIndex<0) return;
-    if(e.key==='S' || e.key==='s'){
-      toggleStarOnCurrent(); renderAliasList();
-    }
+    if(e.key==='S'||e.key==='s'){ toggleStarOnCurrent(); renderAliasList(); renderParamGrid(); }
   });
 
-  /* ===== Tema + boot ===== */
-  document.addEventListener('DOMContentLoaded', ()=>{
+  document.addEventListener('DOMContentLoaded',()=>{
     loadPrefs(); loadStars(); applyTheme();
     $('btnTheme').addEventListener('click',()=>{
-      prefs.theme=(prefs.theme==='dark'?'light':'dark'); savePrefs(); applyTheme(); drawAll();
+      prefs.theme=prefs.theme==='dark'?'light':'dark'; savePrefs(); applyTheme(); drawAll();
     });
     vzoom=prefs.vzoom||1; vzoomSlider.value=vzoom; vzoomLabel.textContent=vzoom.toFixed(2)+'×';
-    toggleSpec.checked = !!prefs.showSpec;
-    // cores
-    const {waveBg,waveColor} = getWaveColors();
-    waveColorPicker.value = prefs.waveColor || '#000000';
-    waveBgColorPicker.value = prefs.waveBgColor || waveBg || '#ffffff';
+    toggleSpec.checked=!!prefs.showSpec;
+
+    const{waveBg,waveColor}=getWaveColors();
+    waveColorPicker.value=prefs.waveColor||'#000000';
+    waveBgColorPicker.value=prefs.waveBgColor||waveBg||'#ffffff';
     waveColorPicker.addEventListener('input',()=>{
-      prefs.waveColor = waveColorPicker.value || '#000000';
-      savePrefs(); drawAll();
+      prefs.waveColor=waveColorPicker.value||'#000000'; savePrefs(); drawAll();
     });
     waveBgColorPicker.addEventListener('input',()=>{
-      prefs.waveBgColor = waveBgColorPicker.value || null;
-      savePrefs(); drawAll();
+      prefs.waveBgColor=waveBgColorPicker.value||null; savePrefs(); drawAll();
     });
 
     initFloatables();
-    renderAliasList();
-    updateEncodingBadge('utf-8', true);
-    updateAliasInputState();
+    renderAliasList(); renderParamGrid();
+    updateEncodingBadge('utf-8',true); updateAliasInputState();
   });
   </script>
 </body>
